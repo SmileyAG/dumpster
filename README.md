@@ -11,3 +11,12 @@ MD5: 6BACCB82591E6617333A03841043EBF3
 URL: https://downloads.openwrt.org/releases/23.05.4/targets/ramips/mt76x8/openwrt-23.05.4-ramips-mt76x8-asus_rt-n12-vp-b1-squashfs-sysupgrade.bin
 
 MD5: BA3DAD701436E0C03AC57C610D81D32F
+
+# Upgrade from Padavan to stock firmware
+
+- Enable Telnet and SSH
+- Verify that SSH enabled: `telnet 192.168.1.1 22`
+- `ssh admin@192.168.1.1`
+- `wget https://raw.githubusercontent.com/SmileyAG/asus_rt_n11p_b1/master/stock.trx -P /tmp/`
+- Verify checksum: `md5sum /tmp/stock.trx`
+- If valid, then `mtd_write -r write /tmp/stock.trx Firmware_Stub`
