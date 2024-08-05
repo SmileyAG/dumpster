@@ -14,6 +14,7 @@ MD5: BA3DAD701436E0C03AC57C610D81D32F
 
 # Upgrade from Padavan to stock firmware
 
+- Make sure the **Firmware_Stub** partition is present by typing: `cat /proc/mtd`
 - Enable Telnet and SSH
 - Verify that SSH enabled: `telnet 192.168.1.1 22`
 - `ssh admin@192.168.1.1`
