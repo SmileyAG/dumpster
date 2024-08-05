@@ -1,3 +1,9 @@
+# ASUS Firmware Restoration 2.1.0.3
+
+URL: https://dlcdnets.asus.com/pub/ASUS/wireless/GT-AX6000/Rescue_2103.zip
+
+MD5: 6A734DAA8ABD9A01CBD921AA54C7DD76
+
 # Firmwares
 
 ## Stock (ASUS RT-N11P B1)
