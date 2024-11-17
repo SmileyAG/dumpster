@@ -1,0 +1,314 @@
+
+	Alhexx' Nightfire .007 File Format Analysis v1.10
+
+-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+There is one thing I want to say before starting with the 
+file format itself:
+
+I HAVEN'T SEEN SUCH A STUPID ARCHIVE FILE FORMAT BEFORE!
+
+
+Okay, now I'm ready to calm down ;)
+As already meantioned, this format is quite "strange", or
+let's say: unflexible
+There is no chance of making an editor, which will be able
+to replace or insert single files within the archive
+without having to decompress and re-compress the whole
+archive... what a bullsh*t!!
+
+
+Okay, let's start:
+
+At the beginning of the file, there are two 4-byte integers.
+In my (german) Version of assets.007, these are "1" and "3".
+I really don't have any idea what these values are good for,
+however, if you change them, the game won't launch *_*
+
+What follows, is the TOC (table of contents).
+Is it made up of two types of structures, one for directories
+and another for files:
+
+
+Directory Type
+--------------
+typedef struct
+{
+	int	iDirNameLength;
+	char	szDirName[iDirNameLength];
+	int	iNumSubDirs;
+	int	iFileNameBufferSize;
+} t_dirheader;
+
+Let's take a look at it:
+The first Value, iDirNameLength, tells you the length of the
+name of this Directory.
+szDirName is the Name of the directory. Its length is
+iDirNameLength, and there is no terminating nullchar or things
+like that.
+iNumSubDirs tells you how many Subdirectories this Directory has.
+iFileNameBufferSize:
+This is gettin' complicated:
+This value specifies how long a buffer must be to hold all
+file names within this folder. If you terminate every filename
+with a nullchar (0x00), then all file names within this directory
+will fit into a buffer of the size of iFileNameBufferSize.
+
+
+File Type
+---------
+typedef struct
+{
+	int	iFileNameLength;
+	char	szFileName[iFileNameLength];
+	char	cCompressorFlag;
+	int	iRealSize;
+	int	iCompressedSize;
+} t_fileheader;
+
+Analysis:
+I think I don't have to tell you anything about the first
+two values.
+cCompressorFlag:
+	0x00 if the file is uncompressed
+	0x01 if the file is compressed
+iRealSize: Tells you the "real" File size. Real means that if
+the file is compressed, this tells you the length of the file
+when it's uncompressed.
+iCompressedSize: Tells you the size of the Compressed file.
+If the cCompressorFlag is 0x00 (uncompressed), then iCompressedSize
+is equal to iRealSize.
+
+
+File Structure Analysis
+-=-=-=-=-=-=-=-=-=-=-=-
+
+Now you have the two structures you need.
+Let's see how they are arranged in the assets.007 ...
+(Open the assets.007 in a hex-editor to see what I'm talking about)
+(Info: As mentioned above, I only have the german assets.007, so
+it might be different from your version!)
+
+Directly after those 8 bytes we are skipping, there is the
+ROOT-directory entry. So you have a t_dirheader structure filled
+in front of you ;)
+After that, there are 29 file structures.
+The first file should be "biomonk.cfg" and the last one
+"wendigo.cfg".
+Some of those files are compressed, some uncompressed.
+
+But that doesn't matter for now.
+Now let's take a look at the next value after the "wendigo.cfg"-
+structure. It should be at offset 0x2FD (765).
+You see there is a 4-Byte Integer telling you "0" ...
+This is the "Directory-File-Entries-Teminator" :P
+Okay, one more time:
+You remember, at the beginning, there was the ROOT-Directory.
+Directly after that a hand full of file entries. And now
+a terminator...
+All the files that have been listed until here, are directly
+in that ROOT-Directory.
+
+If you take a look at the next entry, you'll see a new Directory-
+Structure ("gui").
+
+That's the only way to recognize whether you have to use a file
+or a directory structure. After a terminator, you'll have to use
+a directory structure... here's a quote from Gequinn's Page:
+
+"In either case, if the length part is 0, then simply skip those
+4 bytes, and the next entry will be a directory, otherwise, it
+is a file."
+
+So I might help your fantasy with a little "graph" ?!? :P
+
+DirEntry "ROOT"
+	|
+	+- FileEntry "biomonk.cfg"
+	|
+	... other file entries
+	|
+	+- FileEntry "wendigo.cfg"
+	|
+	+- Terminator
+	|
+	+- DirEntry "gui"
+	|	|
+	|	+- FileEntry "console_background.png"
+	|	|
+	|	+- FileEntry "fonts.txt"
+	|	|
+	|	+- Terminator
+	|	|
+	|	... other dir entries
+	|	|	
+	|	+- DirEntry "Scripts"
+	|		|
+	|		... file and dir entries
+	|		|
+	|		+- DirEntry "MainMenu"
+	|			|
+	|			... file entries
+	|			|
+	|			+- Terminator
+	|
+	+- DirEntry "maps"
+	|
+	... other dir entries
+
+
+Now there is something you have to keep in mind:
+The Terminator finishes the file list of a directory.
+So after the last file entry of MainMenu (last sub-dir
+of scripts, which is the last sub-dir of gui) there
+is only 1 Terminator, although it is the end of
+3 directories (gui, scripts, mainmenu).
+Directly after the MainMenu-Terminator, there is the
+"maps"-direntry, which is in the ROOT-directory!
+
+I hope you understand what I'm writing here... if not,
+read it again and have a closer look at the assets.007 in
+your hex-editor.
+
+Directly after that TOC, there is the raw file data.
+Every file is stored there, one after the other, without
+any breaks or start/end-tags. They are in the order they
+were listed in the TOC. To extract the files, you will have
+to calulate their positions within the 007-file, extract
+and, if necessary, decompress them.
+
+There is a Checksum at the end of the file, but if you
+only want to decompress those Archives, and not compress them,
+then you don't have to care about that Checksum.
+Otherwise see Chapter "Checksum Calculation"
+
+
+Compression Hints
+-=-=-=-=-=-=-=-=-
+As you have read above, some (or most?) of the files in
+assets.007 are compressed. There are compressed using
+ZIP-Compression.
+
+Now when a file is compressed, you will have to read out
+the compressed data from the 007-file and decompress it.
+I'm not gonna explain how to decompress ZIP-compressed
+data, head out to the web and search for useful source
+code or complete libraries... (I have used zlib)
+
+
+Checksum Calculation
+-=-=-=-=-=-=-=-=-=-=
+If you open your assets.007 in a hex-editor and scroll to
+the end of the file, you will see that there are 20 Bytes
+written after the last raw file data.
+Let's take a closer look at those 20 bytes.
+The first part is a 4-Byte integer telling you 16 (0x10).
+This value tells you the length of the checksum, however,
+since we have a 128-Bit-Length Checksum, it is always
+16 Bytes Long (128 Bits / 8 = 16 Bytes)
+The next 16 Bytes are the Checksum.
+
+Now what kind of Checksum is it? Well, a more complicated one.
+It is the "RSA Data Security, Inc. MD5 Message-Digest
+Algorithmm". If you want to know how to generate this checksum,
+goto google and search for "md5 algorithm" or "RFC1321".
+You'll find a lot of useful sources.
+
+But now what's even more important: Of which parts of the
+File is the Checksum Calculated?
+Answer: It is calculated from the TOC.
+
+If you're using Hex Workshop 3.x as a Hex-Editor as I do,
+I'm going to tell you how to generate the Checksum under 
+Hex-Works.
+
+1. Open assets.007 in Hex Works
+2. Search the file for "{steel_ladder.png"
+-> This is the last file in my assets.007 archive
+3. Go to the END of the terminator finishing this file entry
+4. Now Hold down the Shift-Key and press the Home-Key
+5. The whole TOC should be selected now
+-> Remember those first 8 Bytes we skipped?
+6. Unselect the first 8 Bytes
+7. Now goto "Tools\Generate Checksum..."
+8. Select "MD5" and "On: Selection" and press Generate
+
+Now you've got the MD5 Checksum. Head down to the end of the
+archive and compare the Checksum to the one that's written there.
+If it matches, you got it, if not, read the last 8 steps again
+and repeat them.
+Remember: The Selection must start at the length part of the
+"ROOT"-Directory-End and must end at the last terminator. Then
+you should get the right Checksum.
+
+
+Additional Tipps
+-=-=-=-=-=-=-=-=
+(The other chapters of this document where written before the
+Release of Alura & Zoe, so this one was added later)
+Since I have been able to write two tools to decompress and
+compress those 007-Archives, I'm gonna give you a hand in
+creating your own (de)compressor.
+I have created a Tree-Structure to store the whole TOC. It was
+quite complicated to get it running without errors, however,
+it runs fine now.
+You will have to create two node-Structures, one for directories
+and one for the files.
+
+Please do not mail me begging to send my source code to you.
+When the time will have come, I will release the Source-Code
+of Alura & Zoe.
+
+Oh, and If you take a look at "Engine.dll" in a debugger, you
+will see a lot of functions to handle Nodes of a Tree-Structure,
+too. So Gearbox has used this Tree-Solution, too :D
+
+
+Final Words
+-=-=-=-=-=-
+Phew!
+Like I said, a quite stupid file format. I can image that
+some of you didn't understand what I was writing in this
+document, however, it is 2:10 in the morning at the moment
+and I'm quite tired ... and that format really sucks...
+I will now have to develop a useful mechanism to decode
+and maybe even encode 007 files...
+If you have understood how this file format works, be happy
+with your knowledge, but for those who don't:
+Please don't bug me with questions on this format, okay?
+
+Oh, I've almost forgotten to credit someone who indirectly
+helped me with his ".007 file spec":
+
+Special Thanx to Gequinn (website@gequinn.demon.co.uk) !!!
+http://www.gta-network.com/~gequinn/home.html
+
+
+There is something else important I have to write here:
+The "RSA Data Security, Inc. MD5 Message-Digest Algorithm"
+is Copyright (C) 1991-2, RSA Data Security, Inc.
+
+
+Well, I'm going to bed now...
+
+~~ Greetings Fly Out To: ~~
+Darkness
+Ficedula
+Kaddy #17
+Kaoru S. Night
+Mirex
+Phaeron
+Qhimm
+Sephiroth 3D
+ShinRa Inc.
+The SaiNt
+... and everyone who misses his/her name here!
+
+Visit or contact me:
+--------------------
+Home  : http://www.alhexx.com
+Forum : http://forums.alhexx.com
+Mail  : alhexx@alhexx.com
+
+ - Alhexx
+02:16 2003.05.19
