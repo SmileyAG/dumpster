@@ -1,0 +1,1 @@
+https://www.codeproject.com/Articles/2951/VCplusplus7-to-VCplusplus6-Project-Converter
